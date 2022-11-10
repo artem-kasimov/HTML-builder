@@ -24,7 +24,7 @@ fs.readdir(
 
             let size = stats.size / 1024 + 'kb'
 
-            let dot = dirent.name.indexOf('.')
+            let dot = dirent.name.lastIndexOf('.')
 
             if (dot > -1) {
               process.stdout.write(
