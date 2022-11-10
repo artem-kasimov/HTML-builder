@@ -1,39 +1,49 @@
-const fs = require('fs')
 const path = require('path')
+const fsPromises = require('fs/promises')
 
-const copyDir = () => {
-  fs.promises
-    .mkdir(path.resolve(__dirname, 'files-copy'))
-    .then(() => {
-      fs.readdir(path.resolve(__dirname, 'files'), (err, data) => {
-        if (err) {
-          throw new Error(err)
-        }
-
-        data.forEach(file => {
-          fs.copyFile(
-            path.resolve(__dirname, 'files', file),
-            path.resolve(__dirname, 'files-copy', file),
-            err => {
-              if (err) {
-                throw new Error(err)
-              }
-            }
-          )
+fsPromises
+  .mkdir(path.resolve(__dirname, 'files-copy'))
+  .then(() => {
+    copyFiles(
+      path.resolve(__dirname, 'files'),
+      path.resolve(__dirname, 'files-copy')
+    )
+  })
+  .catch(err => {
+    if (err.code === 'EEXIST') {
+      fsPromises
+        .rm(path.resolve(__dirname, 'files-copy'), { recursive: true })
+        .then(() => {
+          fsPromises
+            .mkdir(path.resolve(__dirname, 'files-copy'))
+            .then(() =>
+              copyFiles(
+                path.resolve(__dirname, 'files'),
+                path.resolve(__dirname, 'files-copy')
+              )
+            )
         })
+    }
+  })
+
+const copyFiles = (filesPath, copyPath) => {
+  fsPromises.readdir(filesPath).then(files => {
+    files.forEach(file => {
+      fsPromises.stat(path.resolve(filesPath, file)).then(stat => {
+        if (stat.isFile()) {
+          fsPromises.copyFile(
+            path.resolve(filesPath, file),
+            path.resolve(copyPath, file)
+          )
+        } else if (stat.isDirectory()) {
+          fsPromises.mkdir(path.resolve(copyPath, file)).then(() => {
+            copyFiles(
+              path.resolve(filesPath, file),
+              path.resolve(copyPath, file)
+            )
+          })
+        }
       })
     })
-    .catch(() => {
-      fs.promises
-        .readdir(path.resolve(__dirname, 'files-copy'))
-        .then(data => {
-          data.forEach(file => {
-            fs.promises.unlink(path.resolve(__dirname, 'files-copy', file))
-          })
-        })
-        .then(() => fs.promises.rmdir(path.resolve(__dirname, 'files-copy')))
-        .then(() => copyDir())
-    })
+  })
 }
-
-copyDir()
